@@ -1,5 +1,7 @@
 # Ara Control
 
+**English** · [Русский](README.ru.md)
+
 Use the mute button on your AKG Ara USB microphone to deafen yourself in Discord while a game or another window is in front. Ara Control reads the button and volume knob on Windows and sends the keyboard shortcuts you choose.
 
 [Download AraControl.exe](https://github.com/WasyaPetechkin/ara-control/releases/latest/download/AraControl.exe) · [Release notes](https://github.com/WasyaPetechkin/ara-control/releases/latest)
@@ -29,6 +31,8 @@ To reopen the window, double-click the microphone icon in the notification area 
 | Volume knob | Turning the knob keeps its normal headphone-volume function. Enable **Send shortcuts on rotation** to also send a separate shortcut in each direction. |
 | Other voice apps | Choose **Add profile**, enter a name and select the app’s process. Assign the same shortcut in Ara Control and the voice app. Select the profile manually in the window or tray. |
 | Window focus | For background use, give each app a unique global shortcut. To restrict a profile to the foreground, enable **Only send when the target window is active** under **Settings**. |
+
+**Example: two calls at once.** With the Discord profile selected and the foreground option on, press the button while Discord is active to deafen the call. Switch to Telegram and press again. The Ara microphone turns back on for Telegram, while Discord stays deafened because Ara Control skips the shortcut. With the option off, the second press can also turn off Deafen in Discord. The physical button always toggles the microphone itself, regardless of which profile you select.
 
 ## Check a microphone press
 
