@@ -34,7 +34,7 @@ To reopen the window, double-click the microphone icon in the notification area 
 
 Choose **Check button** on the Controls page and press the physical button on the Ara within 30 seconds. The check shows whether Ara Control received the press, whether the selected app is running, and whether Windows accepted the configured shortcut. While control is paused, you can check the hardware without sending keys. For a foreground-only profile, switch to the target window before pressing the button.
 
-When the shortcut is sent, check the result in the voice app itself, such as the headphones icon in Discord. **Test** remains available for sending the shortcut directly, without a physical press.
+When the shortcut is sent, check the result in the voice app itself, such as the headphones icon in Discord. Leave the check open and press again to send the shortcut once more. For Discord’s Toggle Deafen, the second press restores the call audio. The counter shows how many button presses Ara Control received. **Test** remains available for sending the shortcut directly, without a physical press.
 
 ## Compatibility
 

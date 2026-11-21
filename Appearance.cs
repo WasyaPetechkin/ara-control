@@ -82,7 +82,7 @@ internal static class Texts
         { "Not sent", new[] { "Не надіслано", "Не отправлено" } },
         { "No press received within 30 seconds.", new[] { "За 30 секунд натискання не виявлено.", "За 30 секунд нажатие не обнаружено." } },
         { "Microphone disconnected.", new[] { "Мікрофон від’єднано.", "Микрофон отключён." } },
-        { "Check the result in the target application.", new[] { "Перевірте результат у вибраній програмі.", "Проверьте результат в выбранной программе." } },
+        { "Check the result in the target application. Press again to repeat.", new[] { "Перевірте результат у програмі. Натисніть кнопку ще раз, щоб повторити команду.", "Проверьте результат в программе. Нажмите кнопку ещё раз, чтобы повторить команду." } },
         { "Connect the AKG Ara and try again.", new[] { "Підключіть AKG Ara і повторіть перевірку.", "Подключите AKG Ara и повторите проверку." } },
         { "The selected profile changed.", new[] { "Вибрано інший профіль.", "Выбран другой профиль." } },
         { "Record", new[] { "Записати", "Записать" } },

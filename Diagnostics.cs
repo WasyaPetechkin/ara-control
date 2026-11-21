@@ -5,7 +5,7 @@ using System.Windows.Forms;
 sealed partial class MainWindow
 {
     // Device notifications and the diagnostic timer are dispatched on the UI thread.
-    // Removing this handler completes the one-shot check before any keys are sent.
+    // While the dialog is listening, each decoded press is routed here exactly once.
     Action<string> diagnosticEvent;
 
     sealed class ShortcutAttempt
@@ -46,28 +46,31 @@ sealed partial class MainWindow
             var close = Btn(form, T("Cancel"), 393, 322, 167, form.Close, false);
             form.CancelButton = close;
 
+            int presses = 0;
             diagnosticEvent = delegate(string signal) {
-                diagnosticEvent = null;
+                if (signal == "timeout" && presses > 0) return;
                 timeout.Stop();
                 close.Text = T("Close");
                 if (signal != "button") {
+                    diagnosticEvent = null;
                     string reason = signal == "timeout" ? "No press received within 30 seconds."
                         : signal == "profile-changed" ? "The selected profile changed."
                         : signal == "unavailable" ? "Connect the AKG Ara and try again." : "Microphone disconnected.";
                     help.Text = T(reason);
-                    buttonState.Text = T("Not checked");
+                    if (presses == 0) buttonState.Text = T("Not checked");
                     return;
                 }
 
-                buttonState.Text = T("Received");
+                presses++;
+                buttonState.Text = T("Received") + "  ·  " + presses;
                 buttonState.ForeColor = colors.Good;
                 var attempt = Dispatch(profile, profile.Button, settings.Enabled);
                 string state = !attempt.Running.HasValue ? "Status unavailable" : attempt.Running.Value ? "Running" : "Not running";
                 application.Text = profile.Process + "  ·  " + T(state);
                 bool sent = attempt.Result == "Sent";
                 shortcut.Text = sent ? T("Sent") + "  ·  " + profile.Button : T("Not sent");
-                if (sent) shortcut.ForeColor = colors.Good;
-                help.Text = T(sent ? "Check the result in the target application." : attempt.Result);
+                shortcut.ForeColor = sent ? colors.Good : colors.Text;
+                help.Text = T(sent ? "Check the result in the target application. Press again to repeat." : attempt.Result);
                 result.Text = !sent && attempt.Detail != null ? attempt.Detail : ChordLabel(profile.Button);
                 Note("Press", attempt.Result, attempt.Detail);
             };
