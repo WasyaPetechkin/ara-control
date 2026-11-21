@@ -9,9 +9,11 @@ using System.Threading;
 using System.Windows.Forms;
 using Microsoft.Win32;
 
-sealed class MainWindow : Form
+sealed partial class MainWindow : Form
 {
     readonly Settings settings;
+    readonly StartupRegistration startup = new StartupRegistration();
+    bool hideFirstShow, startupRepairFailed;
     readonly NotifyIcon tray = new NotifyIcon();
     readonly ContextMenuStrip menu = new ContextMenuStrip();
     readonly System.Windows.Forms.Timer testTimer = new System.Windows.Forms.Timer();
@@ -31,6 +33,12 @@ sealed class MainWindow : Form
     public MainWindow()
     {
         settings = SettingsStore.Load();
+        hideFirstShow = settings.StartInTray;
+        try {
+            if (!Environment.GetCommandLineArgs().Contains("--startup"))
+                startup.RepairMovedExecutable();
+        }
+        catch (Exception) { startupRepairFailed = true; }
         if (Environment.GetCommandLineArgs().Contains("--enabled")) {
             settings.Enabled = true;
             SettingsStore.Save(settings);
@@ -61,12 +69,21 @@ sealed class MainWindow : Form
         };
         Render();
         tray.Visible = true;
-        Shown += delegate {
+        // The HID reader must also run when the first window stays in the tray.
+        BeginInvoke(new Action(delegate {
             var worker = new Thread(delegate() { Device.Loop(OnConnection, e => Post(delegate { OnDeviceEvent(e); })); });
             worker.IsBackground = true;
             worker.Start();
-        };
+        }));
         SystemEvents.UserPreferenceChanged += OnPreferenceChanged;
+    }
+
+    protected override void SetVisibleCore(bool value) {
+        if (value && hideFirstShow) {
+            hideFirstShow = false;
+            value = false;
+        }
+        base.SetVisibleCore(value);
     }
 
     Font MakeFont(string familyName, float size, FontStyle style) {
@@ -238,6 +255,7 @@ sealed class MainWindow : Form
         Caption(surface, T("Last action"), 22, bottom, 530, 26, small, colors.Muted);
         last = Caption(surface, "", 22, bottom + 26, 548, 49, normal, colors.Text);
         Btn(surface, T("Minimize to tray"), 20, bottom + 87, 232, Hide, false);
+        Btn(surface, T("Check button"), 264, bottom + 87, 238, CheckButton, false);
         surface.AutoScrollMinSize = new Size(0, U(bottom + 138));
     }
 
@@ -265,6 +283,31 @@ sealed class MainWindow : Form
         Caption(profile, active.Name, 18, 12, 534, 30, heading, colors.Text);
         Check(profile, T("Only send when the target window is active"), active.FocusOnly, 18, 55, 530,
             v => { active.FocusOnly = v; testTimer.Stop(); Save(); });
+        var launch = Card(surface, 437, 160);
+        Caption(launch, T("Startup"), 18, 8, 530, 32, heading, colors.Text);
+        bool registered = false, readable = true;
+        try { registered = startup.IsEnabled(); }
+        catch (Exception) { readable = false; }
+        var logon = Check(launch, T("Start when I sign in to Windows"), registered, 18, 43, 530, value => {
+            try { startup.SetEnabled(value); startupRepairFailed = false; }
+            catch (Exception ex) {
+                MessageBox.Show(this, T("Windows startup could not be updated.") + Environment.NewLine + ex.Message, Text);
+            }
+            Post(Render);
+        });
+        logon.Enabled = readable;
+        Check(launch, T("Start in the system tray"), settings.StartInTray, 18, 78, 530, value => {
+            bool previous = settings.StartInTray;
+            settings.StartInTray = value;
+            try { SettingsStore.Save(settings); }
+            catch (Exception ex) {
+                settings.StartInTray = previous;
+                MessageBox.Show(this, T("Settings could not be saved.") + Environment.NewLine + ex.Message, Text);
+                Post(Render);
+            }
+        });
+        if (!readable || startupRepairFailed)
+            Caption(launch, T("Windows startup settings are unavailable."), 18, 114, 530, 36, small, colors.Alert);
     }
     void Choices(Control parent, int x, int y, string[] values, string[] labels, string value, Action<string> change) {
         var box = Combo(parent, x, y, 350);
@@ -284,6 +327,7 @@ sealed class MainWindow : Form
     }
     void SelectProfile(int i) {
         if (i < 0 || i >= settings.Profiles.Count) return;
+        if (i != settings.Selected && diagnosticEvent != null) diagnosticEvent("profile-changed");
         testTimer.Stop(); calibrating = false; settings.Selected = i;
         Note("Ready", null, null); Save(); Post(Render);
     }
@@ -344,7 +388,8 @@ sealed class MainWindow : Form
         public override Color SeparatorDark { get { return palette.Border; } }
         public override Color SeparatorLight { get { return palette.Border; } }
     }
-    void Restore() { Show(); WindowState = FormWindowState.Normal; Activate(); }
+    void Restore() { hideFirstShow = false; Show(); WindowState = FormWindowState.Normal; Activate(); }
+    public void RequestShow() { Post(Restore); }
 
     void Post(Action action) {
         if (!IsHandleCreated || IsDisposed) return;
@@ -354,9 +399,19 @@ sealed class MainWindow : Form
         Post(delegate { if (!dialogOpen && (settings.Theme == "system" || SystemInformation.HighContrast)) Render(); });
     }
     void OnConnection(bool value) {
-        Post(delegate { if (connected != value) { connected = value; UpdateStatus(); SetTrayState(); } });
+        Post(delegate {
+            if (connected == value) return;
+            connected = value;
+            UpdateStatus();
+            SetTrayState();
+            if (!value && diagnosticEvent != null) diagnosticEvent("disconnected");
+        });
     }
     void OnDeviceEvent(string e) {
+        if (diagnosticEvent != null && e == "button") {
+            diagnosticEvent("button");
+            return;
+        }
         if (dialogOpen) return;
         if (calibrating) {
             if (e == "button") return;
@@ -379,16 +434,32 @@ sealed class MainWindow : Form
     }
     void Send(string chord, string kind) {
         if (String.IsNullOrWhiteSpace(chord)) { Note(kind, "Shortcut is unassigned.", null); return; }
+        var attempt = Dispatch(active, chord, true);
+        Note(kind, attempt.Result, attempt.Detail);
+    }
+    static ShortcutAttempt Dispatch(Profile profile, string chord, bool enabled) {
+        var attempt = new ShortcutAttempt();
         uint pid;
         GetWindowThreadProcessId(GetForegroundWindow(), out pid);
-        Process[] apps = Process.GetProcessesByName(active.Process);
+        Process[] apps = null;
         try {
-            if (apps.Length == 0) { Note(kind, "The target application is not running.", null); return; }
-            if (active.FocusOnly && !apps.Any(p => p.Id == pid)) { Note(kind, "The target window is not active.", null); return; }
-            bool sent = Shortcuts.Send(chord);
-            Note(kind, sent ? "Sent" : "Windows rejected the shortcut.", chord);
-        } catch (Exception ex) { Note(kind, "Windows rejected the shortcut.", ex.Message); }
-        finally { foreach (var p in apps) p.Dispose(); }
+            apps = Process.GetProcessesByName(profile.Process);
+            attempt.Running = apps.Length != 0;
+            if (!enabled) attempt.Result = "Control paused";
+            else if (String.IsNullOrWhiteSpace(chord)) attempt.Result = "Shortcut is unassigned.";
+            else if (!attempt.Running.Value) attempt.Result = "The target application is not running.";
+            else if (profile.FocusOnly && !apps.Any(p => p.Id == pid)) attempt.Result = "The target window is not active.";
+            else {
+                attempt.Result = Shortcuts.Send(chord) ? "Sent" : "Windows rejected the shortcut.";
+                attempt.Detail = chord;
+            }
+        } catch (Exception ex) {
+            attempt.Result = attempt.Running.HasValue ? "Windows rejected the shortcut." : "Status unavailable";
+            attempt.Detail = ex.Message;
+        } finally {
+            if (apps != null) foreach (var p in apps) p.Dispose();
+        }
+        return attempt;
     }
 
     Form MakeDialog(string titleKey, int w, int h) {

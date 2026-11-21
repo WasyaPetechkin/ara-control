@@ -15,6 +15,12 @@ Use the mute button on your AKG Ara USB microphone to deafen yourself in Discord
 
 Choose **Minimize to tray** to keep Ara Control running. Right-click the tray icon to pause control, change profiles or exit.
 
+## Start with Windows
+
+In **Settings → Startup**, turn on **Start when I sign in to Windows** to launch Ara Control for your Windows account. Keep the executable in the folder you plan to use. Turn on **Start in the system tray** if you want the window hidden at launch. Both options are off by default and can be changed independently. Your selected profile and pause setting carry over between launches.
+
+To reopen the window, double-click the microphone icon in the notification area or choose **Open** from its menu.
+
 ## Customize the controls
 
 | Control | How it works |
@@ -24,7 +30,11 @@ Choose **Minimize to tray** to keep Ara Control running. Right-click the tray ic
 | Other voice apps | Choose **Add profile**, enter a name and select the app’s process. Assign the same shortcut in Ara Control and the voice app. Select the profile manually in the window or tray. |
 | Window focus | For background use, give each app a unique global shortcut. To restrict a profile to the foreground, enable **Only send when the target window is active** under **Settings**. |
 
-If a press has no effect, check **Last action**. **Test** sends the configured shortcut without pressing the microphone button. If Windows reports it was sent, try the same keys on your keyboard with the target app running.
+## Check a microphone press
+
+Choose **Check button** on the Controls page and press the physical button on the Ara within 30 seconds. The check shows whether Ara Control received the press, whether the selected app is running, and whether Windows accepted the configured shortcut. While control is paused, you can check the hardware without sending keys. For a foreground-only profile, switch to the target window before pressing the button.
+
+When the shortcut is sent, check the result in the voice app itself, such as the headphones icon in Discord. **Test** remains available for sending the shortcut directly, without a physical press.
 
 ## Compatibility
 

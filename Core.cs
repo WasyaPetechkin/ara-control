@@ -13,8 +13,8 @@ using Microsoft.Win32.SafeHandles;
 [assembly: AssemblyTitle("Ara Control")]
 [assembly: AssemblyProduct("Ara Control")]
 [assembly: AssemblyDescription("Windows controls for the AKG Ara USB microphone")]
-[assembly: AssemblyVersion("1.2.1.0")]
-[assembly: AssemblyFileVersion("1.2.1.0")]
+[assembly: AssemblyVersion("1.3.0.0")]
+[assembly: AssemblyFileVersion("1.3.0.0")]
 
 public class Profile {
  public string Name, Process, Button, Up, Down;
@@ -27,6 +27,7 @@ public class Settings {
  public string Language = "system";
  public string Theme = "system";
  public bool Enabled;
+ public bool StartInTray;
  public string ClockwiseCode;
 }
 class Decoder {
@@ -224,11 +225,22 @@ static class Program {
  [STAThread]
  static void Main() {
   bool first;
+  using(var restore=new EventWaitHandle(false,EventResetMode.AutoReset,"Local\\AraControlOpenWindow"))
   using(var mutex=new Mutex(true,"Local\\AraControlAKG",out first)){
-   if(!first)return;
+   if(!first){
+    if(!Environment.GetCommandLineArgs().Contains("--startup"))restore.Set();
+    return;
+   }
    Application.EnableVisualStyles();
    Application.SetCompatibleTextRenderingDefault(false);
-   try {Application.Run(new MainWindow());}
+   try {
+    using(var window=new MainWindow()) {
+     var listener=ThreadPool.RegisterWaitForSingleObject(restore,
+      delegate {window.RequestShow();},null,Timeout.Infinite,false);
+     try {Application.Run(window);}
+     finally {listener.Unregister(null);}
+    }
+   }
    catch(Exception ex){MessageBox.Show(ex.Message,"Ara Control",MessageBoxButtons.OK,MessageBoxIcon.Error);}
   }
  }
