@@ -13,13 +13,39 @@ using Microsoft.Win32.SafeHandles;
 [assembly: AssemblyTitle("Ara Control")]
 [assembly: AssemblyProduct("Ara Control")]
 [assembly: AssemblyDescription("Windows controls for the AKG Ara USB microphone")]
-[assembly: AssemblyVersion("1.3.0.0")]
-[assembly: AssemblyFileVersion("1.3.0.0")]
+[assembly: AssemblyVersion("1.4.0.0")]
+[assembly: AssemblyFileVersion("1.4.0.0")]
 
 public class Profile {
  public string Name, Process, Button, Up, Down;
  public bool Wheel, FocusOnly;
+ public ShortcutEdit LastShortcutChange;
+ public string GetShortcut(string slot) {
+  switch(slot) {
+   case "button": return Button;
+   case "up": return Up;
+   case "down": return Down;
+   default: throw new ArgumentOutOfRangeException("slot");
+  }
+ }
+ public void SetShortcut(string slot, string value) {
+  switch(slot) {
+   case "button": Button = value; break;
+   case "up": Up = value; break;
+   case "down": Down = value; break;
+   default: throw new ArgumentOutOfRangeException("slot");
+  }
+ }
  public override string ToString(){return Name;}
+}
+public class ShortcutEdit {
+ public string Slot, Previous;
+ public List<ShortcutOwner> PreviousOwners;
+}
+public class ShortcutOwner {
+ // Profiles keep their position when selected or renamed; new profiles are appended.
+ public int ProfileIndex;
+ public string Slot;
 }
 public class Settings {
  public List<Profile> Profiles = new List<Profile>();

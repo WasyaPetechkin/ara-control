@@ -29,8 +29,10 @@ To reopen the window, double-click the microphone icon in the notification area 
 | --- | --- |
 | Microphone button | Choose **Record**, press your shortcut, then **Save**. **Cancel** discards the edit. **Reset** restores the profile default, which is **Ctrl + Shift + F9** for Discord. |
 | Volume knob | Turning the knob keeps its normal headphone-volume function. Enable **Send shortcuts on rotation** to also send a separate shortcut in each direction. |
-| Other voice apps | Choose **Add profile**, enter a name and select the app’s process. Assign the same shortcut in Ara Control and the voice app. Select the profile manually in the window or tray. |
+| Other voice apps | Choose **Add profile → Choose window**, then click the voice app’s window. Ara Control fills in the process name. Press **Esc** to cancel, or enter the process manually. Choose **Save** and assign the same shortcut in the voice app. Switch profiles manually in the window or tray. |
 | Window focus | For background use, give each app a unique global shortcut. To restrict a profile to the foreground, enable **Only send when the target window is active** under **Settings**. |
+
+After saving a shortcut change, choose **Undo shortcut change** to restore the previous button or knob binding. Each profile remembers its most recent edit, including a clear or reset, across restarts.
 
 **Example: two calls at once.** With the Discord profile selected and the foreground option on, press the button while Discord is active to deafen the call. Switch to Telegram and press again. The Ara microphone turns back on for Telegram, while Discord stays deafened because Ara Control skips the shortcut. With the option off, the second press can also turn off Deafen in Discord. The physical button always toggles the microphone itself, regardless of which profile you select.
 

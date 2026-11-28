@@ -11,7 +11,7 @@ try {
     foreach ($icon in 'AraControl','TrayConnected','TrayPaused','TrayDisconnected') {
         $options += "/resource:assets\$icon.ico,$icon.ico"
     }
-    & $compiler @options Core.cs MainWindow.cs AraIcons.cs Appearance.cs Rounded.cs ProfileFields.cs Startup.cs Diagnostics.cs
+    & $compiler @options Core.cs MainWindow.cs AraIcons.cs Appearance.cs Rounded.cs ProfileFields.cs Startup.cs Diagnostics.cs WindowPicker.cs
     if ($LASTEXITCODE -ne 0) {throw 'Ara Control build failed.'}
 } finally {Pop-Location}
 

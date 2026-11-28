@@ -220,7 +220,9 @@ sealed partial class MainWindow : Form
         Btn(profile, T("Edit profile"), 217, 46, 162, delegate { EditProfile(false); }, false);
         Btn(profile, T("Add profile"), 389, 46, 161, delegate { EditProfile(true); }, false);
 
-        var input = Card(surface, 251, 141);
+        var undo = active.LastShortcutChange;
+        int undoHeight = undo == null ? 0 : 44;
+        var input = Card(surface, 251, 141 + undoHeight);
         Caption(input, T("Microphone button"), 16, 7, 540, 32, heading, colors.Text);
         Caption(input, ChordLabel(active.Button), 16, 43, 183, 34, normal, colors.Text);
         Btn(input, T("Record"), 206, 43, 110, delegate { Record("button"); }, false);
@@ -231,9 +233,14 @@ sealed partial class MainWindow : Form
             : T("This shortcut is already assigned") + " · " + owner.Name;
         Caption(input, guide,
             16, 82, 533, 51, small, colors.Muted);
+        if (undo != null) {
+            Btn(input, T("Undo shortcut change"), 16, 134, 247, UndoShortcut, false);
+            string target = undo.Slot == "up" ? "Volume up" : undo.Slot == "down" ? "Volume down" : "Microphone button";
+            Caption(input, T(target) + " → " + ChordLabel(undo.Previous), 275, 134, 275, 41, small, colors.Muted);
+        }
 
         int height = active.Wheel ? 221 : 106;
-        var rotation = Card(surface, 403, height);
+        var rotation = Card(surface, 403 + undoHeight, height);
         Caption(rotation, T("Knob rotation"), 16, 5, 538, 31, heading, colors.Text);
         Check(rotation, T("Send shortcuts on rotation"), active.Wheel, 16, 42, 533, v => {
             active.Wheel = v; Save(); Render();
@@ -251,7 +258,7 @@ sealed partial class MainWindow : Form
             Btn(rotation, T(calibrating ? "Cancel" : "Identify clockwise turn"), 16, 176, 261,
                 delegate { calibrating = !calibrating; Note(calibrating ? "Turn the knob clockwise one step." : "Ready", null, null); Render(); }, false);
         }
-        int bottom = 414 + height;
+        int bottom = 414 + height + undoHeight;
         Caption(surface, T("Last action"), 22, bottom, 530, 26, small, colors.Muted);
         last = Caption(surface, "", 22, bottom + 26, 548, 49, normal, colors.Text);
         Btn(surface, T("Minimize to tray"), 20, bottom + 87, 232, Hide, false);
@@ -264,9 +271,58 @@ sealed partial class MainWindow : Form
     }
     void ResetButton() {
         testTimer.Stop();
-        active.Button = SettingsStore.DefaultButton(active.Process);
-        Save();
+        if (!ChangeShortcut("button", SettingsStore.DefaultButton(active.Process), true)) return;
         Note("Shortcut reset", null, ChordLabel(active.Button));
+        Render();
+    }
+
+    static readonly string[] ShortcutSlots = { "button", "up", "down" };
+
+    IEnumerable<ShortcutOwner> OtherOwners(string slot, string chord) {
+        for (int i = 0; i < settings.Profiles.Count; i++) {
+            var profile = settings.Profiles[i];
+            foreach (string otherSlot in ShortcutSlots) {
+                if (profile == active && otherSlot == slot) continue;
+                if (EqualChord(chord, profile.GetShortcut(otherSlot)))
+                    yield return new ShortcutOwner { ProfileIndex = i, Slot = otherSlot };
+            }
+        }
+    }
+    bool ChangeShortcut(string slot, string value, bool restoringDefault) {
+        string previous = active.GetShortcut(slot);
+        if (String.Equals(previous ?? "", value ?? "", StringComparison.OrdinalIgnoreCase) || EqualChord(previous, value))
+            return true;
+        if (!restoringDefault) {
+            var conflict = OtherOwners(slot, value).FirstOrDefault();
+            if (conflict != null) { ShowConflict(conflict); return false; }
+        }
+        var owners = OtherOwners(slot, previous).ToList();
+        var edit = new ShortcutEdit { Slot = slot, Previous = previous, PreviousOwners = owners.Count == 0 ? null : owners };
+        return StoreShortcut(slot, value, edit);
+    }
+    bool StoreShortcut(string slot, string value, ShortcutEdit nextUndo) {
+        var previous = active.GetShortcut(slot);
+        var previousUndo = active.LastShortcutChange;
+        active.SetShortcut(slot, value);
+        active.LastShortcutChange = nextUndo;
+        if (Save()) return true;
+        active.SetShortcut(slot, previous);
+        active.LastShortcutChange = previousUndo;
+        return false;
+    }
+    void ShowConflict(ShortcutOwner conflict) {
+        MessageBox.Show(this, T("This shortcut is already assigned") + " · " + settings.Profiles[conflict.ProfileIndex].Name, Text);
+    }
+    void UndoShortcut() {
+        var edit = active.LastShortcutChange;
+        if (edit == null || !ShortcutSlots.Contains(edit.Slot)) return;
+        // Old profiles can legitimately share a chord. Only reject new conflicts.
+        var conflict = OtherOwners(edit.Slot, edit.Previous).FirstOrDefault(owner =>
+            edit.PreviousOwners == null || !edit.PreviousOwners.Any(old => old.ProfileIndex == owner.ProfileIndex && old.Slot == owner.Slot));
+        if (conflict != null) { ShowConflict(conflict); return; }
+        testTimer.Stop();
+        if (!StoreShortcut(edit.Slot, edit.Previous, null)) return;
+        Note("Shortcut restored", null, ChordLabel(edit.Previous));
         Render();
     }
     void BuildSettings(Panel surface) {
@@ -331,9 +387,9 @@ sealed partial class MainWindow : Form
         testTimer.Stop(); calibrating = false; settings.Selected = i;
         Note("Ready", null, null); Save(); Post(Render);
     }
-    void Save() {
-        try { SettingsStore.Save(settings); }
-        catch (Exception ex) { MessageBox.Show(this, T("Settings could not be saved.") + Environment.NewLine + ex.Message, Text); }
+    bool Save() {
+        try { SettingsStore.Save(settings); return true; }
+        catch (Exception ex) { MessageBox.Show(this, T("Settings could not be saved.") + Environment.NewLine + ex.Message, Text); return false; }
     }
     void Note(string kind, string result, string value) {
         lastKind = kind; lastResult = result; lastValue = value;
@@ -423,7 +479,7 @@ sealed partial class MainWindow : Form
         if (!settings.Enabled || (e != "button" && !active.Wheel)) { Note(kind, null, null); return; }
         Send(GetChord(e), kind);
     }
-    string GetChord(string e) { return e == "button" ? active.Button : e == "up" ? active.Up : active.Down; }
+    string GetChord(string e) { return active.GetShortcut(e); }
     void Test() {
         testTimer.Stop();
         if (active.FocusOnly) {
@@ -479,7 +535,7 @@ sealed partial class MainWindow : Form
                 nameField.SetEditor(name);
                 Caption(form, T("Application process"), 20, 85, 385, 27, normal, colors.Text);
                 var processField = new ProfileField(colors, scale) { Font = normal };
-                Put(form, processField, 20, 118, 390, 34);
+                Put(form, processField, 20, 118, 219, 34);
                 var process = Combo(processField, 0, 0, 390);
                 process.DropDownStyle = ComboBoxStyle.DropDown;
                 process.AccessibleName = T("Application process");
@@ -489,6 +545,13 @@ sealed partial class MainWindow : Form
                     using (proc) { try { names.Add(proc.ProcessName); } catch (InvalidOperationException) {} catch (System.ComponentModel.Win32Exception) {} }
                 }
                 process.Items.AddRange(names.Cast<object>().ToArray()); process.Text = adding ? "" : active.Process;
+                Btn(form, T("Choose window"), 247, 118, 163, delegate {
+                    var picked = WindowPicker.Pick(form, T("Click an application window. Press Esc to cancel."),
+                        T("Choose an open application window, or press Esc to cancel."));
+                    if (picked == null) return;
+                    process.Text = picked;
+                    if (adding && String.IsNullOrWhiteSpace(name.Text)) name.Text = picked;
+                }, false);
                 var ok = Btn(form, T("Save"), 22, 183, 183, delegate {
                     string n = name.Text.Trim(); string p = process.Text.Trim();
                     if (p.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)) p = p.Substring(0, p.Length - 4);
@@ -539,19 +602,7 @@ sealed partial class MainWindow : Form
                     save.Focus();
                 };
                 if (form.ShowDialog(this) != DialogResult.OK || form.Chord == null) return;
-                if (!EqualChord(form.Chord, GetChord(slot))) {
-                    foreach (var profile in settings.Profiles) {
-                        if ((profile != active || slot != "button") && EqualChord(form.Chord, profile.Button)
-                            || (profile != active || slot != "up") && EqualChord(form.Chord, profile.Up)
-                            || (profile != active || slot != "down") && EqualChord(form.Chord, profile.Down)) {
-                            MessageBox.Show(this, T("This shortcut is already assigned") + " · " + profile.Name, Text); return;
-                        }
-                    }
-                }
-                if (slot == "button") active.Button = form.Chord;
-                else if (slot == "up") active.Up = form.Chord;
-                else active.Down = form.Chord;
-                Save(); Render();
+                if (ChangeShortcut(slot, form.Chord, false)) Render();
             }
         } finally { dialogOpen = false; }
     }
