@@ -44,6 +44,8 @@ When the shortcut is sent, check the result in the voice app itself, such as the
 
 **Tested hardware** — AKG Ara USB Microphone, verified on Windows. This version recognizes the Ara’s USB HID interface (`VID_0ECB`, `PID_2057`, `MI_03`). Devices with a different USB identifier are outside the current device filter. Other microphone models have not been tested.
 
+Have another microphone? Share its make and model, and optionally its USB hardware ID or what happens when you press mute. [Request microphone support](https://github.com/WasyaPetechkin/ara-control/issues/new?template=microphone-support.yml)
+
 **Interface languages** — English, Українська and Русский. Choose a language or follow Windows. Light, dark and system themes are available under **Settings**.
 
 <details>

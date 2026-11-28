@@ -1,0 +1,38 @@
+name: Request support for a microphone
+description: Suggest a USB microphone and share what its button or knob does on Windows.
+body:
+  - type: input
+    id: model
+    attributes:
+      label: Microphone make and model
+      description: Use the name printed on the microphone or its packaging. Include the model number if you know it.
+      placeholder: Brand and exact model
+    validations:
+      required: true
+
+  - type: input
+    id: usb-id
+    attributes:
+      label: USB hardware ID
+      description: >-
+        If available, open Windows Device Manager and find your microphone under
+        **Sound, video and game controllers**. Open **Properties → Details → Hardware Ids**.
+        Share the `VID_` and `PID_` values and any `MI_` value shown. These identify
+        the model and interface; you can leave out the device instance path and serial number.
+      placeholder: VID_xxxx & PID_xxxx & MI_xx (if shown)
+
+  - type: textarea
+    id: controls
+    attributes:
+      label: Button or knob behavior
+      description: >-
+        Which control would you like to use? If you tried it, tell us what changed
+        on the microphone and in Windows when you pressed the button or turned the knob.
+        A description is enough; a screenshot or short clip is optional.
+
+  - type: checkboxes
+    id: testing
+    attributes:
+      label: Testing
+      options:
+        - label: I have access to this microphone and can try a test build.
